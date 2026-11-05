@@ -2,25 +2,27 @@ package com.example.careerMonitor.DTO;
 
 import com.example.careerMonitor.Entity.CompanyDetails;
 import lombok.*;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 public class CompanyResponseDto {
 
-    Long id;
+    private Long id;
 
-    String name;
+    private String name;
 
-    String url;
+    private String url;
 
-    String lastCheckedTimeStamp;
+    private String lastCheckedTimestamp;
 
-    public CompanyResponseDto(CompanyDetails companyDetails){
+    public CompanyResponseDto(CompanyDetails companyDetails) {
         this.name = companyDetails.getName();
-        this.url= companyDetails.getUrl();
-        this.id=companyDetails.getId();
-        this.lastCheckedTimeStamp=companyDetails.getLastKnownContentHash();
-
+        this.url = companyDetails.getUrl();
+        this.id = companyDetails.getId();
+        this.lastCheckedTimestamp = companyDetails.getLastCheckedTimestamp() != null
+                ? companyDetails.getLastCheckedTimestamp().toString()
+                : null;
     }
 }

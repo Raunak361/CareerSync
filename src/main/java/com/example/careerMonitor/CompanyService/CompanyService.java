@@ -2,10 +2,7 @@ package com.example.careerMonitor.CompanyService;
 
 import com.example.careerMonitor.DTO.CompanyRequestDto;
 import com.example.careerMonitor.DTO.CompanyResponseDto;
-import org.springframework.stereotype.Service;
 import java.util.List;
-
-@Service
 
 
 public interface CompanyService {

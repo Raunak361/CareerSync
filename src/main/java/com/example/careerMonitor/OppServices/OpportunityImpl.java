@@ -1,10 +1,13 @@
 package com.example.careerMonitor.OppServices;
 
 import com.example.careerMonitor.DTO.OpportunityResponseDto;
+import com.example.careerMonitor.Entity.Opportunity;
 import com.example.careerMonitor.repository.OpportunityRepo;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,19 +15,28 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OpportunityImpl implements OpportunityService {
 
-    @Autowired
-    private final OpportunityRepo opportunityRepo;
+    private static final Logger log = LoggerFactory.getLogger(OpportunityImpl.class);
 
+    private final OpportunityRepo opportunityRepo;
 
     @Override
     public List<OpportunityResponseDto> getAllOpportunityByUserId(String userId) {
-        // to be implemented later
-        return List.of();
+        return opportunityRepo.findByCompanyDetails_UserIdAndIsReadFalse(userId)
+                .stream()
+                .map(OpportunityResponseDto::new)
+                .toList();
     }
 
     @Override
+    @Transactional
     public void markOpportunityAsRead(long opportunityId, String userId) {
+        Opportunity opportunity = opportunityRepo
+                .findByIdAndCompanyDetails_UserId(opportunityId, userId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Opportunity not found with id=" + opportunityId + " for user=" + userId));
 
-        //to be implemented later
+        opportunity.setIsRead(true);
+        opportunityRepo.save(opportunity);
+        log.info("Marked opportunity id={} as read for user '{}'", opportunityId, userId);
     }
 }

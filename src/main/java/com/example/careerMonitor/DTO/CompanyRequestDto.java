@@ -1,6 +1,6 @@
 package com.example.careerMonitor.DTO;
 
-import lombok.AllArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,10 +8,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
 public class CompanyRequestDto {
 
-    String name;
+    @NotBlank(message = "Company name is required")
+    private String name;
 
-    String url;
+    @NotBlank(message = "Career page URL is required")
+    private String url;
 }
