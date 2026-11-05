@@ -31,3 +31,22 @@ build/
 
 ### VS Code ###
 .vscode/
+# Maven build files
+
+# Java compiled files
+*.class
+
+# IDE files
+.idea/
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+
+# Local configuration containing credentials
+application-local.properties
+application-local.yml
+
+# Logs
+*.log

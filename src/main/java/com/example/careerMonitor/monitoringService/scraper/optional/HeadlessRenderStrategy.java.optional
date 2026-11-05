@@ -1,0 +1,121 @@
+package com.example.careerMonitor.monitoringService.scraper;
+
+// OPTIONAL: rename this file to HeadlessRenderStrategy.java and add the Playwright dependency (see README).
+// Handles pages whose job list only appears after JavaScript runs (React/Angular/Vue SPAs, "load more" lists).
+// Enable with:  career.scraper.headless.enabled=true
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.WaitUntilState;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import java.util.*;
+import java.util.concurrent.*;
+
+@Component
+@Order(5)
+@ConditionalOnProperty(name = "career.scraper.headless.enabled", havingValue = "true")
+public class HeadlessRenderStrategy implements JobExtractionStrategy, DisposableBean {
+
+    private static final Logger log = LoggerFactory.getLogger(HeadlessRenderStrategy.class);
+
+    // Playwright objects are NOT thread-safe: every call goes through this single thread.
+    private final ExecutorService pw = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "playwright");
+        t.setDaemon(true);
+        return t;
+    });
+    private final ObjectMapper mapper;
+    private final JsonLdStrategy jsonLd;
+    private final EmbeddedJsonStrategy embedded;
+    private final HtmlHeuristicStrategy html;
+    private final AtsApiStrategy ats;
+    private Playwright playwright;
+    private Browser browser;
+
+    @Autowired
+    public HeadlessRenderStrategy(ObjectMapper mapper, JsonLdStrategy jsonLd, EmbeddedJsonStrategy embedded,
+                                  HtmlHeuristicStrategy html, AtsApiStrategy ats) {
+        this.mapper = mapper; this.jsonLd = jsonLd; this.embedded = embedded; this.html = html; this.ats = ats;
+    }
+
+    @Override public String name() { return "headless-browser"; }
+
+    @Override
+    public List<ScrapedJob> extract(ScrapeContext ctx) throws Exception {
+        Future<List<ScrapedJob>> f = pw.submit(() -> render(ctx));
+        try {
+            return f.get(90, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            f.cancel(true);
+            throw e;
+        }
+    }
+
+    private List<ScrapedJob> render(ScrapeContext ctx) throws Exception {
+        if (browser == null) {
+            playwright = Playwright.create();
+            browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
+        }
+        List<String> jsonBodies = new CopyOnWriteArrayList<>();
+
+        try (BrowserContext bc = browser.newContext(new Browser.NewContextOptions().setUserAgent(PageFetcher.USER_AGENT));
+             Page page = bc.newPage()) {
+
+            page.route("**/*", route -> {            // skip heavy assets
+                String t = route.request().resourceType();
+                if (t.equals("image") || t.equals("font") || t.equals("media")) route.abort(); else route.resume();
+            });
+            page.onResponse(resp -> {                // capture the XHR/fetch JSON the SPA uses to load jobs
+                try {
+                    String ct = resp.headers().getOrDefault("content-type", "");
+                    if (ct.contains("json") && jsonBodies.size() < 60) jsonBodies.add(resp.text());
+                } catch (Exception ignored) { }
+            });
+
+            page.navigate(ctx.url, new Page.NavigateOptions().setWaitUntil(WaitUntilState.NETWORKIDLE).setTimeout(45000));
+            for (int i = 0; i < 4; i++) {            // trigger lazy loading / infinite scroll
+                page.mouse().wheel(0, 5000);
+                page.waitForTimeout(700);
+            }
+
+            String finalUrl = page.url();
+            Document rendered = Jsoup.parse(page.content(), finalUrl);
+            ScrapeContext rctx = new ScrapeContext(finalUrl, rendered, ctx.fetcher, mapper);
+
+            // 1) JSON the page itself fetched (most reliable, includes pagination the page already did)
+            List<ScrapedJob> best = Collections.emptyList();
+            for (String body : jsonBodies) {
+                try {
+                    List<ScrapedJob> found = EmbeddedJsonStrategy.findJobs(mapper.readTree(body), finalUrl);
+                    if (found.size() > best.size()) best = found;
+                } catch (Exception ignored) { }
+            }
+            if (best.size() >= 3) return best;
+
+            // 2) the rendered DOM through the normal strategies
+            for (JobExtractionStrategy s : Arrays.asList(ats, jsonLd, embedded, html)) {
+                List<ScrapedJob> found = s.extract(rctx);
+                if (found.size() >= Math.max(3, s.minConfidentResults())) return found;
+                if (found.size() > best.size()) best = found;
+            }
+            return best;
+        }
+    }
+
+    @Override
+    public void destroy() {
+        pw.submit(() -> {
+            try { if (browser != null) browser.close(); if (playwright != null) playwright.close(); } catch (Exception ignored) { }
+        });
+        pw.shutdown();
+    }
+}
