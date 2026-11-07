@@ -31,7 +31,7 @@ public class Opportunity {
     // Direct link to the job posting
 
     @Column(name = "experience", nullable = true, length = 100)
-    private String experience;
+    private Integer experience;
 
     @Column(name = "type", nullable = false, length = 100)
     private String type;
@@ -44,7 +44,7 @@ public class Opportunity {
     private Boolean isRead = false;
 
 
-    public Opportunity(CompanyDetails company, String title, String s, Date date,String experience,String type) {
+    public Opportunity(CompanyDetails company, String title, String s, Date date,Integer experience,String type) {
         this.companyDetails=company;
         this.title= title;
         this.jobUrl=s;

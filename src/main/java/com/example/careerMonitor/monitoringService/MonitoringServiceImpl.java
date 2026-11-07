@@ -137,11 +137,11 @@ public class MonitoringServiceImpl implements MonitoringServiceInterface, Dispos
         // 2) read detail pages of the NEW ones only, to learn the required experience (capped per company)
         newJobs = jobEnricher.enrich(newJobs);
 
-        // 3) save with type ("job" | "internship") and experience ("fresher", "1 year", "2 years", ... or null)
+        // 3) save with type ("job" | "internship") and experience (minimum years as Integer: 0 = fresher, 1, 2, ... or null)
         Date now = new Date();
         List<Opportunity> fresh = new ArrayList<>();
         for (ScrapedJob j : newJobs) {
-            Opportunity o = new Opportunity(company, j.getTitle(), j.getUrl(), now,j.getType(),j.getExperience());
+            Opportunity o = new Opportunity(company, j.getTitle(), j.getUrl(), now,j.getExperience(), j.getType());
             o.setType(j.getType());
             o.setExperience(j.getExperience());
             fresh.add(o);

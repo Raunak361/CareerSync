@@ -70,7 +70,7 @@ public class MonitoringTestController {
         body.put("jobCount", r.getJobs().size());
         body.put("trace", r.getTrace());
         body.put("jobs", shown.stream().limit(100).map(j -> {
-            Map<String, String> m = new LinkedHashMap<>();
+            Map<String, Object> m = new LinkedHashMap<>();
             m.put("title", j.getTitle());
             m.put("url", j.getUrl());
             m.put("location", j.getLocation());

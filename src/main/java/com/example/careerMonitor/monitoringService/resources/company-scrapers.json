@@ -1,0 +1,178 @@
+{
+  "profiles": [
+    {
+      "company": "Stripe",
+      "type": "greenhouse",
+      "token": "stripe",
+      "filters": {
+        "locationRegex": "(?i)india|bengaluru|bangalore|remote"
+      }
+    },
+    {
+      "company": "Airbnb",
+      "type": "greenhouse",
+      "token": "airbnb"
+    },
+    {
+      "company": "Databricks",
+      "type": "greenhouse",
+      "token": "databricks",
+      "filters": {
+        "includeTitleRegex": "(?i)intern|new grad|university|engineer"
+      }
+    },
+    {
+      "company": "Spotify",
+      "type": "lever",
+      "token": "spotify"
+    },
+    {
+      "company": "Palantir",
+      "type": "lever",
+      "token": "palantir"
+    },
+    {
+      "company": "Notion",
+      "type": "ashby",
+      "token": "notion"
+    },
+    {
+      "company": "Linear",
+      "type": "ashby",
+      "token": "linear"
+    },
+    {
+      "_note": "VERIFIED (public JSON search used by amazon.jobs itself; result_limit max 100, results capped at offset 10000, so we filter to India). Fields location/normalized_location/job_path confirmed Oct 2026. descriptionFields (basic_qualifications etc.) are used to read the required experience; names are from memory - check one item of the JSON response.",
+      "company": "Amazon",
+      "type": "json-api",
+      "api": {
+        "url": "https://www.amazon.jobs/en/search.json?base_query=&normalized_country_code%5B%5D=IND&sort=recent&offset={offset}&result_limit={limit}",
+        "itemsPath": "jobs",
+        "titleField": "title",
+        "urlTemplate": "https://www.amazon.jobs{job_path}",
+        "locationField": "normalized_location",
+        "pageSize": 100,
+        "maxPages": 40,
+        "delayMs": 300,
+        "descriptionFields": [
+          "basic_qualifications",
+          "description",
+          "preferred_qualifications"
+        ]
+      }
+    },
+    {
+      "_note": "VERIFIED markup (Avature-based site, server-rendered): each job is <h3><a href='.../JobDetail/<slug>/<id>'>. This is Deloitte's *India offices of the US* (USI) site. For entry-level only, use url ...SearchJobs?3_225_3=2183949&jobRecordsPerPage=10 . Deloitte India (other entities) is a different site.",
+      "company": "Deloitte",
+      "type": "html",
+      "html": {
+        "url": "https://usijobs.deloitte.com/en_US/careersUSI/SearchJobs/?jobRecordsPerPage=10",
+        "itemSelector": "a[href*='/JobDetail/']",
+        "pageParam": "jobOffset",
+        "pageStart": 0,
+        "pageStep": 10,
+        "maxPages": 50,
+        "delayMs": 400
+      }
+    },
+    {
+      "_note": "Based on the job URLs already stored for Google (jobs/results/<id>-<slug>). Page param and location param (?location=India&page=N) not verified - check with /test/scrape?company=Google.",
+      "company": "Google",
+      "type": "html",
+      "html": {
+        "url": "https://www.google.com/about/careers/applications/jobs/results/?location=India",
+        "itemSelector": "a[href*='jobs/results/']",
+        "titleAttribute": "aria-label",
+        "pageParam": "page",
+        "pageStart": 1,
+        "maxPages": 10,
+        "delayMs": 400
+      },
+      "filters": {
+        "includeUrlRegex": "jobs/results/\\d{6,}-"
+      }
+    },
+    {
+      "_note": "UNVERIFIED. Wipro's portal is SAP SuccessFactors (RMK). These are the standard RMK selectors (a.jobTitle-link, 25 per page via startrow). fallbackToAuto lets the generic pipeline try if they do not match. Check with /test/scrape?company=Wipro.",
+      "company": "Wipro",
+      "type": "html",
+      "fallbackToAuto": true,
+      "html": {
+        "url": "https://careers.wipro.com/search/?q=&locationsearch=India&startrow=0",
+        "itemSelector": "a.jobTitle-link",
+        "pageParam": "startrow",
+        "pageStart": 0,
+        "pageStep": 25,
+        "maxPages": 40,
+        "delayMs": 400
+      }
+    },
+    {
+      "_note": "NOT WORKING YET - no public API found. TCS hires through iBegin (ibegin.tcs.com/iBegin/jobs/search), a JavaScript app. Open it in Chrome > DevTools > Network > Fetch/XHR, search for jobs, find the request that returns the job list, and fill api.url/itemsPath/titleField/urlTemplate from it. Then set enabled true. Until then TCS uses the generic pipeline.",
+      "company": "TCS",
+      "type": "json-api",
+      "enabled": false,
+      "api": {
+        "url": "FILL_ME_FROM_DEVTOOLS?offset={offset}&limit={limit}",
+        "itemsPath": "FILL_ME",
+        "titleField": "title",
+        "urlTemplate": "https://ibegin.tcs.com/iBegin/jobs/{id}",
+        "pageSize": 50
+      }
+    },
+    {
+      "_note": "NOT WORKING YET - portal structure not verified (Infosys uses SuccessFactors for lateral hiring and InfyTQ for campus). Same DevTools method as TCS, or if the listing is server-rendered switch type to html with selectors. Until then Infosys uses the generic pipeline.",
+      "company": "Infosys",
+      "type": "json-api",
+      "enabled": false,
+      "api": {
+        "url": "FILL_ME_FROM_DEVTOOLS?offset={offset}&limit={limit}",
+        "itemsPath": "FILL_ME",
+        "titleField": "title",
+        "urlTemplate": "FILL_ME/{id}",
+        "pageSize": 50
+      }
+    },
+    {
+      "_note": "UNVERIFIED example (Workday): token = tenant/wdN/site from the company's myworkdayjobs.com URL.",
+      "company": "NVIDIA",
+      "type": "workday",
+      "token": "nvidia/wd5/NVIDIAExternalCareerSite",
+      "enabled": false
+    },
+    {
+      "_note": "JPMorgan Chase careers run on Oracle Recruiting Cloud (a JavaScript app), so the generic pipeline sees no jobs. This calls the same public JSON the site uses (host jpmc.fa.oraclecloud.com, site CX_1001). Job list = items[0].requisitionList. UNVERIFIED from the build sandbox (no internet): test with /test/scrape?company=JPMorgan%20Chase . If HTTP 400, lower pageSize to 25; if the site id changed, copy host/siteNumber from DevTools > Network on careers.jpmorgan.com search. Remove locationRegex to get all countries.",
+      "company": "JPMorgan Chase",
+      "aliases": [
+        "JPMorgan Chase & Co",
+        "JPMorgan Chase and Co",
+        "JP Morgan Chase",
+        "JPMorganChase",
+        "JPMorgan",
+        "J.P. Morgan",
+        "JP Morgan",
+        "JPMC"
+      ],
+      "urlHost": "jpmorgan,jpmc.fa.oraclecloud.com",
+      "type": "json-api",
+      "api": {
+        "url": "https://jpmc.fa.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList.secondaryLocations&finder=findReqs;siteNumber=CX_1001,limit={limit},offset={offset},sortBy=POSTING_DATES_DESC",
+        "itemsPath": "items.0.requisitionList",
+        "titleField": "Title",
+        "urlTemplate": "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/{Id}",
+        "locationField": "PrimaryLocation",
+        "descriptionFields": [
+          "ShortDescriptionStr"
+        ],
+        "detailUrlTemplate": "https://jpmc.fa.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?expand=all&onlyData=true&finder=ById;Id=%22{Id}%22,siteNumber=CX_1001",
+        "detailKind": "oracle",
+        "pageSize": 50,
+        "maxPages": 150,
+        "delayMs": 250
+      },
+      "filters": {
+        "locationRegex": "(?i)india"
+      }
+    }
+  ]
+}

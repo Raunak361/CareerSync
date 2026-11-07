@@ -6,7 +6,8 @@ import java.util.regex.Pattern;
 /**
  * Works out the two stored labels for a job:
  *   type        -> "job" | "internship"                (never null)
- *   experience  -> "fresher" | "1 year" | "2 years" | "3-5 years" | "5+ years" | "6 months" | null
+ *   experience  -> Integer: the MINIMUM years required (0 = fresher / entry level / under a year, 1, 2, 3, ...), or null when not stated.
+ *                  "3-5 years" -> 3, "5+ years" -> 5, "minimum 2 years" -> 2, "6 months" -> 0, internship -> 0.
  *
  * Evidence order for experience: (1) value supplied by the source (API field / schema.org),
  * (2) the title, (3) internship => fresher, (4) the description, only counting numbers that sit next to
@@ -18,7 +19,8 @@ public final class JobClassifier {
 
     public static final String TYPE_JOB = "job";
     public static final String TYPE_INTERNSHIP = "internship";
-    public static final String FRESHER = "fresher";
+    /** Experience value stored for freshers / entry-level / internships. */
+    public static final Integer FRESHER = 0;
 
     private static final Pattern INTERN_TITLE = Pattern.compile(
             "\\b(interns?|internships?|co-?op|apprentices?|apprenticeships?)\\b|summer (analyst|associate)|\\bstudent trainee\\b",
@@ -45,7 +47,7 @@ public final class JobClassifier {
     /** Fill type (always) and experience (when determinable) on a job, keeping anything already set. */
     public static ScrapedJob complete(ScrapedJob j) {
         String type = classifyType(j.getTitle(), j.getType());
-        String exp = normalizeExperience(j.getExperience());
+        Integer exp = j.getExperience();
 
         if (exp == null) exp = fromText(j.getTitle(), false);
         if (exp == null && TYPE_INTERNSHIP.equals(type)) exp = FRESHER;
@@ -66,47 +68,47 @@ public final class JobClassifier {
     }
 
     /**
-     * Normalises a value that is already an experience statement (provider field, schema.org text, or our own
-     * earlier output). Returns null when it says nothing usable ("Associate", "Mid-Senior level", ...).
+     * Turns a value that is already an experience statement (provider field, schema.org text) into the minimum years.
+     * Returns null when it says nothing usable ("Associate", "Mid-Senior level", ...).
      */
-    public static String normalizeExperience(String hint) {
+    public static Integer normalizeExperience(String hint) {
         if (hint == null) return null;
         String h = hint.trim();
         if (h.isEmpty()) return null;
         String low = h.toLowerCase();
-        if (low.equals(FRESHER)) return FRESHER;
+        if (low.equals("fresher")) return FRESHER;
         if (low.contains("entry") || low.contains("fresher") || low.contains("intern") || low.contains("no experience")
                 || low.contains("graduate") || low.equals("none") || low.contains("no requirement")) return FRESHER;
         Matcher mm = Pattern.compile("^(\\d{1,2})\\s*months?$", Pattern.CASE_INSENSITIVE).matcher(h);
-        if (mm.find()) return parse(mm.group(1)) + " months";
+        if (mm.find()) return parse(mm.group(1)) / 12;
         return fromText(h, false);
     }
 
     /** Public for tests/tools. requireExperienceWord=true applies the "next to the word experience" rule. */
-    public static String fromText(String text, boolean requireExperienceWord) {
+    public static Integer fromText(String text, boolean requireExperienceWord) {
         if (text == null || text.trim().isEmpty()) return null;
 
         // earliest acceptable numeric statement wins
         int bestPos = Integer.MAX_VALUE;
-        String best = null;
+        Integer best = null;
 
         Matcher m = RANGE.matcher(text);
         while (m.find()) {
             if (!nearExperience(text, m.start(), m.end(), requireExperienceWord)) continue;
-            if (m.start() < bestPos) { bestPos = m.start(); best = formatRange(parse(m.group(1)), parse(m.group(2))); }
+            if (m.start() < bestPos) { bestPos = m.start(); best = Math.min(parse(m.group(1)), parse(m.group(2))); }
             break;
         }
         m = PLUS.matcher(text);
         while (m.find()) {
             if (!nearExperience(text, m.start(), m.end(), requireExperienceWord)) continue;
             int n = parse(m.group(1) != null ? m.group(1) : m.group(2));
-            if (m.start() < bestPos) { bestPos = m.start(); best = n == 0 ? FRESHER : n + "+ years"; }
+            if (m.start() < bestPos) { bestPos = m.start(); best = n; }
             break;
         }
         m = SINGLE.matcher(text);
         while (m.find()) {
             if (!nearExperience(text, m.start(), m.end(), requireExperienceWord)) continue;
-            if (m.start() < bestPos) { bestPos = m.start(); best = formatSingle(parse(m.group(1))); }
+            if (m.start() < bestPos) { bestPos = m.start(); best = parse(m.group(1)); }
             break;
         }
         if (best != null) return best;
@@ -114,7 +116,7 @@ public final class JobClassifier {
         if (requireExperienceWord) {
             m = MONTHS.matcher(text);
             while (m.find()) {
-                if (nearExperience(text, m.start(), m.end(), true)) return parse(m.group(1)) + " months";
+                if (nearExperience(text, m.start(), m.end(), true)) return parse(m.group(1)) / 12;
             }
         }
         // no number: explicit fresher wording (title always; description only in its opening part)
@@ -134,17 +136,5 @@ public final class JobClassifier {
 
     private static int parse(String s) {
         try { return Integer.parseInt(s); } catch (Exception e) { return 0; }
-    }
-
-    private static String formatSingle(int n) {
-        if (n <= 0) return FRESHER;
-        return n == 1 ? "1 year" : n + " years";
-    }
-
-    private static String formatRange(int a, int b) {
-        if (b < a) { int t = a; a = b; b = t; }
-        if (a == b) return formatSingle(a);
-        if (a == 0 && b <= 1) return FRESHER;
-        return a + "-" + b + " years";
     }
 }

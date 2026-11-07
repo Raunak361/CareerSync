@@ -20,11 +20,12 @@ Debug: `GET /test/scrape?company=Stripe`, `GET /test/profiles`, `GET /test/profi
 Override file location: `career.scraper.profiles=file:/path/company-scrapers.json`.
 
 ## Type and experience
-Every job gets `type` ("job" | "internship", never null) and `experience` ("fresher", "1 year", "2 years", "3-5 years",
-"5+ years", "6 months", or null when the posting states nothing). Evidence order: provider fields / schema.org ->
-title -> internship => fresher -> description (numbers only count next to the word "experience"; "founded 12 years ago" is ignored).
+Every job gets `type` ("job" | "internship", never null) and `experience` (**Integer**: the MINIMUM years required - 0 = fresher/entry level/under a year,
+1, 2, 3 ... - or null when the posting states nothing). "3-5 years" -> 3, "5+ years" -> 5, "minimum 2 years" -> 2, "6 months" -> 0, internship -> 0.
+Evidence order: provider fields / schema.org ->
+title -> internship => 0 -> description (numbers only count next to the word "experience"; "founded 12 years ago" is ignored).
 New jobs only have their detail page read (`JobEnricher`): `career.monitor.enrich.max-per-company=60` (0 disables), `career.monitor.enrich.delay-ms=250`.
-`Opportunity` needs `setType(String)` and `setExperience(String)`. Label old rows: `GET /test/backfill-labels` then `?dryRun=false`.
+`Opportunity` needs `setType(String)` and `setExperience(Integer)` (column type INT, nullable; see `resources/migrate-experience-to-int.sql` for existing data). Label old rows: `GET /test/backfill-labels` then `?dryRun=false`.
 Try it: `GET /test/scrape?company=Stripe&enrich=true`.
 
 ## Pipeline for companies without a profile (first confident result wins)

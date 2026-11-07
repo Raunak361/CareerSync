@@ -14,7 +14,7 @@ public final class ScrapedJob {
     private final String url;
     private final String location;   // nullable
     private final String type;       // "job" | "internship" (null until classified)
-    private final String experience; // "fresher" | "1 year" | "2 years" | "3-5 years" | "5+ years" | null
+    private final Integer experience; // minimum years required: 0 = fresher, 1, 2, 3 ... ; null = not stated
     private final String description;// plain text, transient, nullable
     private final String detailUrl;  // optional API URL that returns the full posting (second request)
     private final String detailKind; // greenhouse | workday | smartrecruiters | null
@@ -23,7 +23,7 @@ public final class ScrapedJob {
         this(title, url, location, null, null, null, null, null);
     }
 
-    private ScrapedJob(String title, String url, String location, String type, String experience,
+    private ScrapedJob(String title, String url, String location, String type, Integer experience,
                        String description, String detailUrl, String detailKind) {
         this.title = title;
         this.url = url;
@@ -40,17 +40,18 @@ public final class ScrapedJob {
     public String getUrl() { return url; }
     public String getLocation() { return location; }
     public String getType() { return type; }
-    public String getExperience() { return experience; }
+    public Integer getExperience() { return experience; }
     public String getDescription() { return description; }
     public String getDetailUrl() { return detailUrl; }
     public String getDetailKind() { return detailKind; }
 
     public ScrapedJob withTitleAndUrl(String t, String u) { return new ScrapedJob(t, u, location, type, experience, description, detailUrl, detailKind); }
     public ScrapedJob withType(String v) { return new ScrapedJob(title, url, location, v, experience, description, detailUrl, detailKind); }
-    public ScrapedJob withExperience(String v) { return new ScrapedJob(title, url, location, type, v, description, detailUrl, detailKind); }
+    public ScrapedJob withExperience(Integer v) { return new ScrapedJob(title, url, location, type, v, description, detailUrl, detailKind); }
     public ScrapedJob withDescription(String v) { return new ScrapedJob(title, url, location, type, experience, v, detailUrl, detailKind); }
     public ScrapedJob withHints(String typeHint, String experienceHint, String desc) {
-        return new ScrapedJob(title, url, location, typeHint, experienceHint, desc, detailUrl, detailKind);
+        // experienceHint is provider text ("3-5 years", "fresher", ...); stored as the minimum number of years, or null
+        return new ScrapedJob(title, url, location, typeHint, JobClassifier.normalizeExperience(experienceHint), desc, detailUrl, detailKind);
     }
     public ScrapedJob withDetail(String u, String kind) { return new ScrapedJob(title, url, location, type, experience, description, u, kind); }
 

@@ -24,7 +24,7 @@ public class OpportunityResponseDto {
 
     private String jobUrl;
 
-    private String experience;
+    private Integer experience;
 
     private Date detectedDate;
 
