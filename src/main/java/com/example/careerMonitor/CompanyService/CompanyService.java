@@ -9,7 +9,9 @@ public interface CompanyService {
 
     List<CompanyResponseDto> getAllCompaniesByUserId(String userId);
 
-    CompanyResponseDto addCompany(String userId, CompanyRequestDto companyRequestDto);
+    List<CompanyResponseDto> addCompany(String userId, CompanyRequestDto companyRequestDto);
 
     boolean deleteCompany(long companyId , String userId);
+
+    List<CompanyResponseDto> getAllCompanies();
 }

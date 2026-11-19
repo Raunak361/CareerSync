@@ -15,10 +15,6 @@ public class CompanyDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // The user ID associated with this company list (for security)
-    @Column(name = "user_id", nullable = false)
-    private String userId;
-
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -32,6 +28,7 @@ public class CompanyDetails {
     @Column(name = "last_checked_timestamp")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastCheckedTimestamp;
+
 
     // Relationship: One company can have many found opportunities
     // 'mappedBy' indicates the field in the Opportunity class that owns the relationship
