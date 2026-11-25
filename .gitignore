@@ -42,7 +42,8 @@ build/
 # Environment and secret files
 .env
 .env.*
-!.env.example
+
+
 
 # Local configuration containing credentials
 application-local.properties
