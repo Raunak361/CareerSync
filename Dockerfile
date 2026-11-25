@@ -1,15 +1,21 @@
-# Stage 1: Build the Spring Boot application
-FROM maven:3.9-eclipse-temurin-23 AS build
+
+# Stage 1: Build the application
+FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
+# Load Google's Maven mirror configuration
+COPY settings.xml /root/.m2/settings.xml
+
+# Copy project files
 COPY pom.xml .
 COPY src ./src
 
-RUN mvn clean package -DskipTests
+# Build Spring Boot application
+RUN mvn -B clean package -DskipTests
 
 # Stage 2: Run the application
-FROM eclipse-temurin:23-jre
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
